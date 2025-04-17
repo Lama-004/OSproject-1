@@ -1,114 +1,119 @@
-
 import java.util.*;
+
 class MemoryManager {
-List<MemoryBlock> blocks;
-int allocationStrategy; // 1: First-Fit, 2: Best-Fit, 3: Worst-Fit
 
-public MemoryManager(List<Integer> sizes, int strategy) {
-this.blocks = new ArrayList<>();
-this.allocationStrategy = strategy;
-int address = 0;
-for (int i = 0; i < sizes.size(); i++) {
- int size = sizes.get(i);
- blocks.add(new MemoryBlock(address, size));
- address += size;
-}
-System.out.println("Memory blocks initialized...");
-System.out.println("==========================================================");
-System.out.println("Block# | Size | Start-End | Status |");
-System.out.println("==========================================================");
-int index = 0;
-for (MemoryBlock block : blocks) {
-System.out.printf("Block%-3d | %-4d | %5d-%-5d | %-9s ", index, block.blockSize, block.startAddress, block.endAddress ,block.isAllocated ? "Allocated" : "Free" ); // regluar if else 
-}
-System.out.println("==========================================================");
-}
+   List<MemoryBlock> blocks; //List of all blocks
+   int allocationStrategy; //1:first-fit, 2:best-fit, 3:worst-fit
+
+   public MemoryManager(int[] sizes, int strategy) {
+      blocks = new ArrayList<>();
+      allocationStrategy = strategy;
+      int address = 0;
+   
+   // blocks(List) Initialization
+      for (int i = 0; i < sizes.length; i++) {
+         int size = sizes[i];
+         MemoryBlock m = new MemoryBlock(size, address);
+         blocks.add(m); 
+         address += size;
+      }
+   
+   // Initial Report Printing
+      System.out.println("Memory blocks are created...");
+      System.out.println("Memory blocks:");
+      System.out.println("=======================================================================");
+      System.out.printf("%-10s %-10s %-15s %-10s\n", "Block#", "Size", "Start-End", "Status");
+      System.out.println("=======================================================================");
+   
+      int blockNum = 0;
+      for (MemoryBlock block : blocks) {
+         if (block.Allocated)
+            System.out.printf("Block%-6d %-10d %-15s %-10s\n", blockNum, block.blockSize, block.startAddress + "-" + block.endAddress, "allocated");
+         else
+            System.out.printf("Block%-6d %-10d %-15s %-10s\n", blockNum, block.blockSize, block.startAddress + "-" + block.endAddress, "free");
+         blockNum++;
+      }
+   
+      System.out.println("=======================================================================");
+   }
+
+   public void allocate(String pid, int size) {
+   
+      MemoryBlock selectedBlock = null;
+      for (MemoryBlock block : blocks) { 
+         if (!block.Allocated && block.blockSize >= size) {
+         
+         // First-Fit
+            if (allocationStrategy == 1) { 
+               selectedBlock = block;
+               break;
+            }
+            
+            // Best-Fit      
+            else if (allocationStrategy == 2) {
+               if (selectedBlock == null || block.blockSize < selectedBlock.blockSize) 
+                  selectedBlock = block;
+            }  
+            
+            // Worst-Fit       
+            else if (allocationStrategy == 3) { 
+               if (selectedBlock == null || block.blockSize > selectedBlock.blockSize) 
+                  selectedBlock = block;
+            }
+         
+         } //End If
+      } //End for
+   
+   
+   
+      if (selectedBlock != null) {
+         selectedBlock.Allocated = true;
+         selectedBlock.processID = pid;
+         selectedBlock.internalFragmentation = selectedBlock.blockSize - size;
+         System.out.println(pid + "  Allocated at address " + selectedBlock.startAddress + ", and the internal fragmentation is " + selectedBlock.internalFragmentation);
+         System.out.print("===========================================================================");
+      
+      } else {
+         System.out.println("Memory cannot be allocated");
+      }
+   }
 
 
-// Allocation function
-public void allocate(String pid, int size) {
-MemoryBlock selectedBlock = null;
 
-// First-Fit strategy
-if (allocationStrategy == 1) {
-for (MemoryBlock block : blocks) {
-if (!block.isAllocated && block.blockSize >= size) {
-selectedBlock = block;
-break;
-}
-}
-}
+   public void deallocate(String pid) {
+      boolean found = false;
+      for (MemoryBlock block : blocks) { 
+         if (block.Allocated && block.processID.equals(pid)) {
+            block.Allocated = false;
+            block.processID = "Null";
+            block.internalFragmentation = 0;
+            found = true;
+            System.out.println("Process " + pid + " deallocated");
+            break;
+         }
+      }
+   
+      if (!found) 
+         System.out.println("Process not found");
+   
+   }
 
-// Best-Fit strategy
-else if (allocationStrategy == 2) {
-int minDiff = Integer.MAX_VALUE; // for each loop  
-for (MemoryBlock block : blocks) {
-if (!block.isAllocated && block.blockSize >= size) {
-int diff = block.blockSize - size;
-if (diff < minDiff) {
-minDiff = diff;
-selectedBlock = block;
-}
-}
-}
-}
 
-// Worst-Fit strategy
-else if (allocationStrategy == 3) {
-int maxDiff = -1;
-for (MemoryBlock block : blocks) {
-if (!block.isAllocated && block.blockSize >= size) {
-int diff = block.blockSize - size;
-if (diff > maxDiff) {
-maxDiff = diff;
-selectedBlock = block;
-}
-}
-}
-}
-
-if (selectedBlock != null) {
-selectedBlock.isAllocated = true;
-selectedBlock.processID = pid;
-selectedBlock.internalFragmentation = selectedBlock.blockSize - size; //
-System.out.println(pid + " allocated at address " + selectedBlock.startAddress
-+ ", internal fragmentation: " + selectedBlock.internalFragmentation + "KB");
-} else {
-System.out.println("ERROR: Cannot allocate memory to " + pid + ". Not enough space.");
-}
-}
-
-// Deallocation
-public void deallocate(String pid) {
-boolean found = false;
-for (MemoryBlock block : blocks) {
-if (block.isAllocated && block.processID.equals(pid)) {
-block.isAllocated = false;
-block.processID = "Null";
-block.internalFragmentation = 0;
-found = true;
-System.out.println("Process " + pid + " deallocated.");
-break;
-}
-}
-if (!found) {
-System.out.println("ERROR: Process ID not found.");
-}
-}
-
-// Print status report
-public void printReport() {
-System.out.println("==========================================================");
-System.out.println("Block# | Size | Start-End | Status | Process | Fragmentation");
-System.out.println("==========================================================");
-int index = 0;
-for (MemoryBlock block : blocks) {
-System.out.printf("Block%-3d | %-4d | %5d-%-5d | %-9s | %-8s | %dKB\n",
-index, block.blockSize, block.startAddress, block.endAddress,
-block.isAllocated ? "Allocated" : "Free",  // regluar if else 
-block.processID, block.internalFragmentation);
-index++;
-}
-System.out.println("==========================================================");
-}
+   public void printReport() {
+      System.out.println("Memory blocks:");
+      System.out.println("==============================================================================");
+      System.out.printf("%-10s %-10s %-15s %-10s %-12s %-20s\n","Block#", "size", "start-end", "status", "ProcessID", "InternalFragmentation");
+      System.out.println("==============================================================================");
+   
+      int blockNum = 0;
+      for (MemoryBlock block : blocks) {
+         if(block.Allocated)
+            System.out.printf("Block%-6d %-10d %-15s %-10s %-12s %-20d\n", blockNum, block.blockSize, block.startAddress + "-" + block.endAddress,"allocated", block.processID, block.internalFragmentation);
+         else
+            System.out.printf("Block%-6d %-10d %-15s %-10s %-12s %-20d\n", blockNum, block.blockSize, block.startAddress + "-" + block.endAddress,"free", block.processID, block.internalFragmentation);
+         blockNum++;
+      }
+   
+      System.out.println("==============================================================================");
+   }
 }
